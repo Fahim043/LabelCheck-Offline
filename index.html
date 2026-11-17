@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#10161f" />
+  <meta name="description" content="Private, offline YOLO annotation review and correction. Open a local dataset folder, edit, and save its existing labels." />
+  <title>LabelCheck · Offline annotation validator</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="model.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <div class="brand"><span class="brand-icon">◈</span><div><strong>LabelCheck</strong><span>OFFLINE VALIDATOR</span></div></div>
+      <div class="top-center"><span class="status-dot"></span> PRIVATE · LOCAL FILES ONLY <span class="sep">/</span> <span id="datasetSummary">No dataset open</span></div>
+      <div class="top-actions"><button class="btn subtle" id="helpBtn" title="Shortcuts and guidance">? <span class="hide-sm">Help</span></button><button class="btn primary" id="addFolderTop">＋ Add dataset folder</button></div>
+    </header>
+
+    <div class="workspace">
+      <aside class="sidebar">
+        <div class="panel-head"><div><div class="eyebrow">WORKSPACE</div><h2>Datasets</h2></div><button class="square-button" id="addFolderSide" title="Add another dataset">＋</button></div>
+        <div class="dataset-list" id="datasetList"><div class="empty-inline">No folders opened yet</div></div>
+        <div class="list-header"><div class="eyebrow">IMAGE QUEUE</div><span id="queueCount" class="muted">0 images</span></div>
+        <div class="search-wrap"><span>⌕</span><input type="search" id="searchInput" placeholder="Search images..." autocomplete="off" /></div>
+        <div class="filter-row"><button class="chip active" data-filter="all">All</button><button class="chip" data-filter="pending">Pending</button><button class="chip" data-filter="reviewed">Reviewed</button></div>
+        <div class="image-list" id="imageList"><div class="empty-inline">Your images will appear here.</div></div>
+        <div class="sidebar-footer"><div class="progress-title"><span>Review progress</span><span id="progressText">0 / 0</span></div><div class="progress-track"><div id="progressFill"></div></div><div class="small-muted">Review status is saved in this browser. Image and label files stay in their folders.</div></div>
+      </aside>
+
+      <main class="editor">
+        <div class="image-bar">
+          <div class="current-file"><div class="eyebrow" id="currentDataset">READY TO REVIEW</div><div class="file-title" id="currentFile">Open a dataset to begin</div></div>
+          <div class="image-nav"><button id="prevBtn" class="square-button" title="Previous image (J)">‹</button><span id="imagePosition">0 / 0</span><button id="nextBtn" class="square-button" title="Next image (K)">›</button></div>
+        </div>
+        <div class="toolrow">
+          <div class="tools"><button class="tool active" data-tool="select" title="Select / move / adjust (V)"><span>↖</span> Select</button><button class="tool" data-tool="box" title="Draw box (B)"><span>▢</span> Box</button><button class="tool" data-tool="polygon" title="Draw polygon (G)"><span>⬡</span> Polygon</button><button class="tool" data-tool="point" title="Draw point (P)"><span>⊕</span> Point</button></div>
+          <div class="tool-right"><button class="tiny" id="undoBtn" title="Undo (Ctrl/⌘+Z)">↶</button><button class="tiny" id="redoBtn" title="Redo (Ctrl/⌘+Shift+Z)">↷</button><span class="divider"></span><button class="tiny" id="overlayBtn" title="Toggle annotation overlay (O)">◉</button><button class="tiny" id="fitBtn" title="Fit image (F)">⤢</button><span class="zoom-label" id="zoomLabel">100%</span></div>
+        </div>
+        <div class="stage-wrap" id="stageWrap">
+          <canvas id="canvas" tabindex="0" aria-label="Annotation editor canvas"></canvas>
+          <div id="emptyState" class="empty-state"><div class="hero-symbol">⌗</div><h1>Review annotations visually.</h1><p>Open a folder containing <code>images/</code>, <code>labels/</code> and <code>classes.txt</code>. Nothing is uploaded or sent to a server.</p><button class="btn primary large" id="addFolderEmpty">Choose dataset folder</button><div class="empty-hint">YOLO boxes · Segmentation polygons · Single points</div></div>
+          <div id="canvasHint" class="canvas-hint hidden"></div>
+          <div id="messageToast" class="toast hidden" role="status"></div>
+          <div class="canvas-badges"><span class="glass-badge" id="dimensionsBadge">—</span><span class="glass-badge" id="shapeBadge">—</span></div>
+        </div>
+        <div class="bottom-bar"><div id="contextHint">Choose a dataset folder to get started.</div><div class="bottom-actions"><span id="saveState" class="saved"><span>●</span> No changes</span><button class="btn secondary" id="saveBtn" disabled>Save labels <kbd>⌘/Ctrl S</kbd></button><button class="btn success" id="reviewBtn" disabled>✓ Mark reviewed & next</button></div></div>
+      </main>
+
+      <aside class="inspector">
+        <div class="inspector-head"><div><div class="eyebrow">INSPECTOR</div><h2>Annotations</h2></div><span class="count-badge" id="annoCount">0</span></div>
+        <div class="inspector-scroll">
+          <div id="formatAlert" class="warning-box hidden"></div>
+          <div class="section-title">Objects <span id="objCount" class="muted"></span></div>
+          <div id="annotationList" class="annotations-list"><div class="empty-inline">Select an image to see annotations.</div></div>
+          <div class="inspector-card"><div class="section-title">Selected annotation</div><div id="selectionEmpty" class="small-muted">Select an object on the image or in the list to inspect or correct it.</div>
+            <div id="selectedEditor" class="hidden"><label class="field-label" for="classSelect">Class</label><select id="classSelect"></select><div class="type-row"><span id="selectedType">—</span><span id="selectedVertexCount">—</span></div><div id="numericInfo" class="coord-readout"></div><div class="button-grid"><button class="btn subtle" id="duplicateBtn">Duplicate</button><button class="btn danger-lite" id="deleteBtn">Delete</button></div></div>
+          </div>
+          <div class="inspector-card"><div class="section-title">Add annotation as</div><label class="field-label" for="newClassSelect">Class</label><select id="newClassSelect"></select><p class="small-muted">Choose a class, then select Box, Polygon, or Point above.</p></div>
+          <div class="inspector-card mini-guide"><div class="section-title">Editing guide</div><div><span class="keycap">Drag</span> Move a shape or vertex</div><div><span class="keycap">Double click edge</span> Add polygon point</div><div><span class="keycap">Alt + click vertex</span> Remove polygon point</div><div><span class="keycap">Enter</span> Finish polygon</div><div><span class="keycap">Esc</span> Cancel drawing</div><div><span class="keycap">Scroll</span> Zoom to cursor</div></div>
+        </div>
+        <div class="inspector-footer"><span class="status-dot"></span> Files are edited in place <span class="muted">· No AI/API</span></div>
+      </aside>
+    </div>
+  </div>
+  <dialog id="helpDialog"><form method="dialog"><div class="dialog-head"><div class="eyebrow">QUICK START</div><button class="square-button" value="close">×</button></div><h2>Local YOLO validation</h2><p>Select the main folder, e.g. <code>NOMADAARTICULATA</code>—not its <code>images</code> subfolder. Allow Chrome/Edge to read and edit the folder.</p><div class="help-grid"><div><b>V</b> Select/move</div><div><b>B</b> Draw a box</div><div><b>G</b> Draw polygon</div><div><b>P</b> Add point</div><div><b>Enter</b> Finish polygon</div><div><b>Esc</b> Cancel draft</div><div><b>J / K</b> Previous / next</div><div><b>F</b> Fit image</div><div><b>O</b> Toggle overlays</div><div><b>Delete</b> Delete selected</div><div><b>Ctrl/⌘ S</b> Save labels</div><div><b>Ctrl/⌘ Z</b> Undo</div></div><p class="dialog-note"><b>Safe edits:</b> Only the corresponding label <code>.txt</code> is rewritten after Save. Before first modification, its original contents are backed up under <code>labels/.labelcheck-backups/</code>. Unsupported rows remain untouched.</p><p class="dialog-note">Supported: YOLO detection (5 fields), YOLO segmentation polygons (7+ odd fields), and custom single point rows (3 fields). Pose/keypoint, non-YOLO coordinates and masks are not supported in this version.</p><button class="btn primary" value="close">Got it</button></form></dialog>
+</body>
+</html>
